@@ -21,7 +21,8 @@ $stdioResult = RunTest -Name "stdio" -Tests $stdioTests -Command "pnpm run start
 
 $env:TRANSPORT_MODE = "http"
 pnpm run start &
-Start-Sleep -Seconds 15
+Write-Host "Waiting 10 seconds for HTTP server to start..."
+Start-Sleep -Seconds 10
 $httpResult = RunTest -Name "http" -Tests $httpTests -Command "--transport http http://localhost:3000/mcp"
 
 if ($stdioResult -eq 0 -and $httpResult -eq 0) {

@@ -13,14 +13,37 @@ export interface SearXNGSearchParams {
 }
 
 export interface SearXNGSearchResult {
+  template?: string;
   title: string;
   url: string;
   content?: string;
   engine?: string;
   publishedDate?: string;
   thumbnail?: string;
+  engines?: string[];
+  parsed_url: string[];
+  positions: number[];
   score?: number;
+  category?: string;
+  [key: string]: unknown;
 }
+
+// Runtime list of keys for SearXNGSearchResultCore.
+// Interfaces are erased at runtime, so we keep a const array to perform runtime checks.
+export const SEARXNG_SEARCH_RESULT_CORE_KEYS = [
+  "template",
+  "title",
+  "url",
+  "content",
+  "engine",
+  "publishedDate",
+  "thumbnail",
+  "engines",
+  "parsed_url",
+  "positions",
+  "score",
+  "category",
+] as const;
 
 export interface SearXNGSearchResponse {
   results: SearXNGSearchResult[];

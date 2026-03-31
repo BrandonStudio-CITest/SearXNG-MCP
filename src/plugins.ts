@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { SearXNGClient, SearXNGSearchResult, SearXNGEngine } from "./searxng.js";
+import { SearXNGClient, SEARXNG_SEARCH_RESULT_CORE_KEYS, type SearXNGSearchResult, type SearXNGEngine } from "./searxng.js";
 import type { ShapeOutput } from "@modelcontextprotocol/sdk/server/zod-compat.d.ts";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.d.ts";
 
@@ -17,13 +17,30 @@ function createErrorResponse(error: unknown, context: string) {
   };
 }
 
-function formatSearchResults(results: SearXNGSearchResult[]): string {
-  const resultsCore = results.map((result, index) => `
-  <result index="${index + 1}" url="${result.url}" engine="${result.engine}" date="${result.publishedDate}">
+function isCoreSearchResultKey(
+  key: string,
+): key is (typeof SEARXNG_SEARCH_RESULT_CORE_KEYS)[number] {
+  return (SEARXNG_SEARCH_RESULT_CORE_KEYS as readonly string[]).includes(key);
+}
+
+function formatSearchResult(result: SearXNGSearchResult, index: number): string {
+  let params: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(result)) {
+    if (!isCoreSearchResultKey(key) && value !== undefined) {
+      params[key] = value;
+    }
+  }
+  return `
+<result index="${index + 1}" url="${result.url}" engine="${result.engine}" date="${result.publishedDate}" positions="${result.positions?.join()}">
     <result.title>${result.title}</result.title>
+    <result.extra-metadata format="json">${JSON.stringify(params)}</result.extra-metadata>
     ${result.content}
-  </result>
-`)
+</result>
+`;
+}
+
+function formatSearchResults(results: SearXNGSearchResult[]): string {
+  const resultsCore = results.map((result, index) => formatSearchResult(result, index));
   return '<results>\n' + resultsCore.join('') + '\n</results>';
 }
 
@@ -55,15 +72,29 @@ function formatEngines(engines: SearXNGEngine[]): string {
 
 const BASIC_SEARCH_SCHEMA = {
   title: "Search",
-  description: "Search the web using SearXNG metasearch engine",
+  description: "Search the web using SearXNG metasearch engine.\nNOTE: You may need to run twice, as the result of the first run may not be dependable.",
   inputSchema: {
     query: z.string().describe("The search query"),
-    categories: z.array(z.string()).optional().describe("Categories to search (e.g., 'general', 'images', 'videos', etc)"),
-    engines: z.array(z.string()).optional().describe("Specific engines to use (e.g., 'google', 'bing', etc.)"),
+    categories: z
+      .array(z.enum([
+        'general',
+        'images',
+        'videos',
+        'news',
+        'map',
+        'music',
+        'it',
+        'science',
+        'files',
+        'social media',
+      ]))
+      .optional()
+      .describe("Categories to search"),
+    engines: z.array(z.string()).optional().describe("Specific engines to use. Use `get_engines` tool to obtain all available engines."),
     language: z.string().optional().describe("Language code (e.g., 'en', 'de', 'fr')"),
     pageno: z.number().optional().describe("Page number for pagination (default: 1)"),
     time_range: z.enum(["day", "week", "month", "year"]).optional().describe("Time range filter"),
-    safesearch: z.number().min(0).max(2).optional().describe("Safe search level (0=off, 1=moderate, 2=strict)"),
+    safesearch: z.number().int().min(0).max(2).optional().describe("Safe search level (0=off, 1=moderate, 2=strict)"),
   },
 }
 

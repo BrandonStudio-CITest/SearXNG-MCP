@@ -37,18 +37,20 @@ const TRANSPORT_MODE = process.env.TRANSPORT_MODE || "stdio"; // "http" or "stdi
 // Create SearXNG client
 const searxngClient = new SearXNGClient(SEARXNG_URL);
 
-// Create MCP server
-const server = new McpServer({
-  name: "searxng-mcp",
-  version: "0.1.0",
-});
-
-registerGetEnginesTool(server, searxngClient);
-registerSearchTool(server, searxngClient);
+// Factory function to create and configure a new MCP server
+function createConfiguredServer(): McpServer {
+  const server = new McpServer({
+    name: "searxng-mcp",
+    version: "0.3.0",
+  });
+  registerGetEnginesTool(server, searxngClient);
+  registerSearchTool(server, searxngClient);
+  return server;
+}
 
 async function startHttpServer(): Promise<void> {
-  // Map to store transports by session ID for stateful connections
-  const transports = new Map<string, StreamableHTTPServerTransport>();
+  // Map to store sessions (server + transport) by session ID for stateful connections
+  const sessions = new Map<string, { server: McpServer; transport: StreamableHTTPServerTransport }>();
   // Map to track session last activity for timeout cleanup
   const sessionLastActivity = new Map<string, number>();
 
@@ -57,7 +59,7 @@ async function startHttpServer(): Promise<void> {
     const now = Date.now();
     for (const [sessionId, lastActivity] of sessionLastActivity.entries()) {
       if (now - lastActivity > SESSION_TIMEOUT_MS) {
-        transports.delete(sessionId);
+        sessions.delete(sessionId);
         sessionLastActivity.delete(sessionId);
         console.log(`Session timed out and cleaned up: ${sessionId}`);
       }
@@ -105,26 +107,27 @@ async function startHttpServer(): Promise<void> {
     // Check for existing session
     const sessionId = req.headers["mcp-session-id"] as string | undefined;
 
-    if (sessionId && transports.has(sessionId)) {
+    if (sessionId && sessions.has(sessionId)) {
       // Update last activity timestamp
       sessionLastActivity.set(sessionId, Date.now());
       // Reuse existing transport
-      const transport = transports.get(sessionId)!;
+      const { transport } = sessions.get(sessionId)!;
       await transport.handleRequest(req, res, requestBody);
       return;
     }
 
-    // Handle initialization - create new transport
+    // Handle initialization - create new server + transport
     if (req.method === "POST") {
+      const server = createConfiguredServer();
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => randomUUID(),
         onsessioninitialized: (newSessionId) => {
-          transports.set(newSessionId, transport);
+          sessions.set(newSessionId, { server, transport });
           sessionLastActivity.set(newSessionId, Date.now());
           console.log(`Session initialized: ${newSessionId}`);
         },
         onsessionclosed: (closedSessionId) => {
-          transports.delete(closedSessionId);
+          sessions.delete(closedSessionId);
           sessionLastActivity.delete(closedSessionId);
           console.log(`Session closed: ${closedSessionId}`);
         },
@@ -135,9 +138,9 @@ async function startHttpServer(): Promise<void> {
         await transport.handleRequest(req, res, requestBody);
       } catch (err) {
         // Clean up broken session
-        for (const [sid, t] of transports.entries()) {
-          if (t === transport) {
-            transports.delete(sid);
+        for (const [sid, session] of sessions.entries()) {
+          if (session.transport === transport) {
+            sessions.delete(sid);
             sessionLastActivity.delete(sid);
             console.error(`Cleaned up broken session: ${sid}`);
           }
@@ -169,6 +172,7 @@ async function startHttpServer(): Promise<void> {
 }
 
 async function startStdioServer(): Promise<void> {
+  const server = createConfiguredServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error("SearXNG MCP Server running on stdio");
