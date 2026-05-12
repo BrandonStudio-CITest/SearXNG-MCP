@@ -42,4 +42,4 @@ jobs:
       - name: Run and test Cloudflare Worker transport
         env:
           CF_WORKER_URL: ${{ steps.get_url.outputs.result }}
-        run: pwsh -File .\tests\run_test_cf.ps1
+        run: pwsh -File "./tests/run_test_cf.ps1"

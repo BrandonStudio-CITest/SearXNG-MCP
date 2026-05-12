@@ -44,4 +44,4 @@ jobs:
       - name: Run and test
         env:
           SEARXNG_URL: ${{ secrets.SEARXNG_URL }}
-        run: pwsh -File ./tests/run_test.ps1
+        run: pwsh -File "./tests/run_test.ps1"
