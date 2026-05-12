@@ -1,6 +1,6 @@
 {
   "name": "@bs-mcps/searxng",
-  "version": "0.3.2",
+  "version": "0.4.0-dev.1",
   "description": "MCP server for SearXNG",
   "type": "module",
   "main": "dist/cli.js",
@@ -8,12 +8,15 @@
     "bs-mcps-searxng": "dist/cli.js"
   },
   "scripts": {
-    "build": "tsc",
+    "prebuild": "node -e \"require('fs').writeFileSync('src/version.ts', 'export const version = ' + JSON.stringify(require('./package.json').version) + ';\\n')\"",
+    "build": "tsup src/cli.ts src/searxng.ts src/plugins.ts --format esm --dts --minify",
     "start": "node dist/cli.js",
     "test": "pwsh -File tests/run_test.ps1",
     "test:cf": "pwsh -File tests/run_test_cf.ps1",
+    "predeploy": "npm run prebuild",
+    "deploy": "wrangler deploy --keep-vars",
     "wrangler:dev": "wrangler dev src/cf-worker.ts",
-    "wrangler:deploy": "wrangler deploy --keep-vars"
+    "publish:dev": "npm publish --tag=dev"
   },
   "keywords": [
     "ai",
@@ -48,9 +51,9 @@
       "require": "./dist/searxng.js"
     },
     "./plugins": {
-      "types": "./dist/plugins/index.d.ts",
-      "import": "./dist/plugins/index.js",
-      "require": "./dist/plugins/index.js"
+      "types": "./dist/plugins.d.ts",
+      "import": "./dist/plugins.js",
+      "require": "./dist/plugins.js"
     }
   },
   "dependencies": {
@@ -61,11 +64,8 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260408.1",
     "@types/node": "^24.12.2",
+    "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "wrangler": "^4.81.0"
-  },
-  "pnpm": {
-    "overrides": {
-    }
   }
 }
