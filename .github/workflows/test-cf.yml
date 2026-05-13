@@ -23,8 +23,8 @@ jobs:
         with:
           script: |
             const { owner, repo, number } = context.issue;
-            const pr = await github.pulls.get({ owner, repo, pull_number: number });
-            const { id } = await github.checks.create({
+            const pr = await github.rest.pulls.get({ owner, repo, pull_number: number });
+            const { id } = await github.rest.checks.create({
               owner,
               repo,
               name: 'Cloudflare Worker Transport Test',
@@ -65,7 +65,7 @@ jobs:
           script: |
             const { owner, repo, number } = context.issue;
             const checkId = ${{ steps.start_check.outputs.result }};
-            await github.checks.update({
+            await github.rest.checks.update({
               owner,
               repo,
               check_run_id: checkId,
