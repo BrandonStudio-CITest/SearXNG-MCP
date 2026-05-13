@@ -2,6 +2,7 @@ name: Test Cloudflare Worker Transport
 
 permissions:
   contents: read
+  pull-requests: read
   checks: write
 
 on:
@@ -56,7 +57,7 @@ jobs:
           CF_WORKER_URL: ${{ steps.get_url.outputs.result }}
         run: pwsh -File "./tests/run_test_cf.ps1"
       - name: Update check status
-        if: ${{ always() }}
+        if: ${{ steps.start_check.conclusion == 'success' }}
         uses: actions/github-script@v9
         env:
           JOB_STATUS: ${{ job.status }}
