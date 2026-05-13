@@ -8,6 +8,7 @@ $tests = @(
     [Test]::new("'search' tool works.")
 )
 
-$code = RunTest -Name "Cloudflare Worker" -Tests $tests -Command "--transport http $env:CF_WORKER_URL"
+$url = "$env:CF_WORKER_URL/mcp"
+$code = RunTest -Name "Cloudflare Worker" -Tests $tests -Command "--transport http $url"
 
 exit $code

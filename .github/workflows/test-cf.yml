@@ -11,7 +11,7 @@ on:
 
 jobs:
   test-cf:
-    if: ${{ github.event.issue.pull_request && (github.event.comment.user.type == 'Bot' && github.event.comment.user.html_url == 'https://github.com/apps/cloudflare-workers-and-pages') }}
+    if: ${{ github.event.issue.pull_request && github.event.comment.user.type == 'Bot' && github.event.comment.user.html_url == 'https://github.com/apps/cloudflare-workers-and-pages' && contains(github.event.comment.body, 'Deployment successful') }}
     runs-on: ubuntu-latest
 
     steps:
@@ -24,10 +24,6 @@ jobs:
           result-encoding: string
           script: |
             const body = process.env.COMMENT_BODY;
-            if (!body.includes('Deployment successful')) {
-              core.setFailed('Deployment failed.');
-              return;
-            }
             const urlMatches = body.matchAll(/https:\/\/[^\s]+\.workers\.dev/g)?.toArray()?.flat();
             if (!urlMatches) {
               core.setFailed('No deployment URL found.');
@@ -42,4 +38,4 @@ jobs:
       - name: Run and test Cloudflare Worker transport
         env:
           CF_WORKER_URL: ${{ steps.get_url.outputs.result }}
-        run: pwsh -File .\tests\run_test_cf.ps1
+        run: pwsh -File "./tests/run_test_cf.ps1"
