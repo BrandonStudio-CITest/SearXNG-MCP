@@ -2,6 +2,8 @@ name: Test Cloudflare Worker Transport
 
 permissions:
   contents: read
+  pull-requests: read
+  checks: write
 
 on:
   issue_comment:
@@ -15,6 +17,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Initialize check status
+        id: start_check
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { owner, repo, number } = context.issue;
+            const pr = await github.rest.pulls.get({ owner, repo, pull_number: number });
+            const { data } = await github.rest.checks.create({
+              owner,
+              repo,
+              name: 'Cloudflare Worker Transport Test',
+              head_sha: pr.data.head.sha,
+              status: 'in_progress',
+            });
+            return data.id;
       - name: Get deployment URL
         id: get_url
         uses: actions/github-script@v9
@@ -39,3 +56,23 @@ jobs:
         env:
           CF_WORKER_URL: ${{ steps.get_url.outputs.result }}
         run: pwsh -File "./tests/run_test_cf.ps1"
+      - name: Update check status
+        if: ${{ always() && steps.start_check.conclusion == 'success' }}
+        uses: actions/github-script@v9
+        env:
+          JOB_STATUS: ${{ job.status }}
+        with:
+          script: |
+            const { owner, repo, number } = context.issue;
+            const checkId = ${{ steps.start_check.outputs.result }};
+            await github.rest.checks.update({
+              owner,
+              repo,
+              check_run_id: checkId,
+              status: 'completed',
+              conclusion: process.env.JOB_STATUS === 'success' ? 'success' : 'failure',
+              output: {
+                title: `Cloudflare Worker Transport Test`,
+                summary: `Test ${process.env.JOB_STATUS}.\nDetails: https://github.com/${owner}/${repo}/actions/runs/${context.runId}`,
+              },
+            });
