@@ -3,7 +3,7 @@
   "compatibility_date": "2025-10-08",
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/cf-worker.ts",
-  "name": "searxng-mcp",
+  "name": "searxng-mcp-citest",
   "observability": {
     "logs": {
       "enabled": true,
