@@ -124,12 +124,12 @@ function RunTest {
     param (
         [string]$Name,
         [Test[]]$Tests,
-        [string]$Command
+        [string[]]$Command
     )
 
     Write-Host "========== Begin $($Name) Tests ==========`n"
 
-    RunTestCore -Tests $Tests -CommandArgs $Command.Split(" ")
+    RunTestCore -Tests $Tests -CommandArgs $Command
 
     $succeededTests = $Tests | Where-Object { $_.Passed -eq $true }
     $failedTests = $Tests | Where-Object { $_.Passed -eq $false -and $_.Skipped -eq $false }
